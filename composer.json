@@ -1,0 +1,16 @@
+{
+    "name": "markpruett571/trunk-tokenizer",
+    "description": "A port of the Python package Syntok to PHP.",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Markpruett571\\TrunkTokenizer\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Mark Pruett"
+        }
+    ],
+    "require": {}
+}
