@@ -1,6 +1,6 @@
 <?php
 
-namespace Markpruett571\PhpYake\PhpSyntok;
+namespace Markpruett571\TrunkTokenizer;
 
 class Token
 {

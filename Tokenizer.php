@@ -1,6 +1,6 @@
 <?php
 
-namespace Markpruett571\PhpYake\PhpSyntok;
+namespace Markpruett571\TrunkTokenizer;
 
 class Tokenizer
 {
@@ -25,15 +25,16 @@ class Tokenizer
 
         $offset = $base_offset;
         $this->spaces($text, $matches);
+        $matches[0] = self::convertOffsetForUnicode($matches[0], $text);
 
         foreach ($matches[0] as $index => $mo) {
             $moStart = $mo[1];
-            $moEnd = $mo[1] + strlen($mo[0]);
+            $moEnd = $mo[1] + mb_strlen($mo[0]);
 
             $start = $this->findStart($moStart, $moEnd, $text);
 
             if ($start == $moEnd) {
-                yield new Token(substr($text, $offset, $moStart), $mo[0], $moStart);
+                yield new Token(mb_substr($text, $offset, $moStart), $mo[0], $moStart);
             } else {
                 $end = $this->findEnd($start, $moEnd, $text);
 
@@ -49,25 +50,25 @@ class Tokenizer
 
                 if ($start != $end) {
                     if ($index === 0) {
-                        $word = substr($text, $start, $end - $offset);
+                        $word = mb_substr($text, $start, $end - $offset);
                     } else {
-                        $word = substr($text, $start, $end - $offset - 1);
+                        $word = mb_substr($text, $start, $end - $offset - 1);
                     }
 
-                    foreach ($this->splitWord(substr($text, $offset, $start - $offset), $word, $start) as $token) {
+                    foreach ($this->splitWord(mb_substr($text, $offset, $start - $offset), $word, $start) as $token) {
                         yield $token;
                     }
                 }
 
-                $tail = substr($text, $end, $moEnd - $end);
+                $tail = mb_substr($text, $end, $moEnd - $end);
 
-                if (substr($tail, 0, 3) == "...") {
+                if (mb_substr($tail, 0, 3) == "...") {
                     yield new Token("", "...", $end);
                     $end += 3;
-                    $tail = substr($tail, 3);
+                    $tail = mb_substr($tail, 3);
                 }
 
-                for ($idx = 0; $idx < strlen($tail); $idx++) {
+                for ($idx = 0; $idx < mb_strlen($tail); $idx++) {
                     yield new Token("", $tail[$idx], $idx + $end);
                 }
             }
@@ -75,38 +76,42 @@ class Tokenizer
             $offset = $moEnd;
         }
 
-        if ($offset < strlen($text)) {
-            yield new Token(substr($text, $offset), "", strlen($text));
+        if ($offset < mb_strlen($text)) {
+            yield new Token(mb_substr($text, $offset), "", mb_strlen($text));
         }
     }
 
     public static function findStart(int $start, int $end, string $text): int {
         for ($c = $start; $c < $end; $c++) {
-            if (ctype_alnum($text[$c])) {
+            if (preg_match('/[\p{L}\p{N}]/u', mb_substr($text, $c, 1))) {
                 break;
             }
+
             $start += 1;
         }
+
         return $start;
     }
 
     public static function findEnd(int $start, int $end, string $text): int {
         for ($c = $end - 1; $c >= $start; $c--) {
-            if (ctype_alnum($text[$c])) {
+            if (preg_match('/[\p{L}\p{N}]/u', mb_substr($text, $c, 1))) {
                 break;
             }
+
             $end -= 1;
         }
+
         return $end;
     }
 
     public static function splitNonwordPrefix($mo, int $offset, int $start, string $text) {
         $tokens = [];
 
-        for ($i = 0; $i < strlen(substr($text, $mo[1], $offset - $start)); $i++) {
+        for ($i = 0; $i < mb_strlen(mb_substr($text, $mo[1], $offset - $start)); $i++) {
             $c = $text[$mo[1] + $i];
             if ($i == 0) {
-                $tokens[] = new Token(substr($text, $offset, $mo[1]), $c, $mo[1]);
+                $tokens[] = new Token(mb_substr($text, $offset, $mo[1]), $c, $mo[1]);
                 $offset = $start;
             } else {
                 $tokens[] = new Token("", $c, $mo[1] + $i);
@@ -120,6 +125,7 @@ class Tokenizer
         $remainder = 0;
 
         $this->separation($word, $matches);
+        $matches[0] = self::convertOffsetForUnicode($matches[0], $word);
 
         foreach ($matches[0] as $mo) {
             $result = $this->produceSeparatorSplitToken($remainder, $word, $mo, $prefix, $offset);
@@ -129,13 +135,13 @@ class Tokenizer
                 yield $token;
             }
 
-            $remainder = $mo[1] + strlen($mo[0]);
+            $remainder = $mo[1] + mb_strlen($mo[0]);
         }
 
         if ($remainder == 0) {
             yield new Token($prefix, $word, $offset);
-        } elseif ($remainder < strlen($word)) {
-            yield new Token($prefix, substr($word, $remainder), $offset + $remainder);
+        } elseif ($remainder < mb_strlen($word)) {
+            yield new Token($prefix, mb_substr($word, $remainder), $offset + $remainder);
         }
     }
 
@@ -145,7 +151,7 @@ class Tokenizer
         if ($mo[1] > $remainder) {
             if (preg_match(self::APOSTROPHE_T, $mo[0]) && $word[$mo[1] - 1] == 'n') {
                 if ($remainder < $mo[1] - 1) {
-                    $tokens[] = new Token($prefix, substr($word, $remainder, $mo[1] - 1), $offset + $remainder);
+                    $tokens[] = new Token($prefix, mb_substr($word, $remainder, $mo[1] - 1), $offset + $remainder);
                     $prefix = "";
                 }
 
@@ -153,7 +159,7 @@ class Tokenizer
                 return ['tokens' => $tokens, 'prefix' => ""];
             }
 
-            $tokens[] = new Token($prefix, substr($word, $remainder, $mo[1] - $remainder), $offset + $remainder);
+            $tokens[] = new Token($prefix, mb_substr($word, $remainder, $mo[1] - $remainder), $offset + $remainder);
             $prefix = "";
         }
 
@@ -187,7 +193,7 @@ class Tokenizer
             '\.\.\.|' .  // inner ellipsis
             '(?<=\p{L})[,;_' . "\x{00AD}\x{058A}\x{05BE}\x{0F0C}\x{1400}\x{1806}\x{2010}\x{2011}\x{2012}\x{2e17}\x{30A0}-" . '](?=[\p{L}\p{Nd}])|' .  // dash-not-digits transition prefix
             '(?<=[\p{L}\p{Nd}])[,;_' . "\x{00AD}\x{058A}\x{05BE}\x{0F0C}\x{1400}\x{1806}\x{2010}\x{2011}\x{2012}\x{2e17}\x{30A0}-" . '](?=\p{L})/u', $input  // dash-not-digits transition postfix
-        , $matches, PREG_OFFSET_CAPTURE);
+            , $matches, PREG_OFFSET_CAPTURE);
     }
 
     public static function spaces($input, &$matches) {
@@ -200,5 +206,14 @@ class Tokenizer
 
     public static function to_text(array $tokens): string {
         return implode("", array_map("strval", $tokens));
+    }
+
+    public static function convertOffsetForUnicode(array $matches, string $searchText)
+    {
+        foreach ($matches as $key => $match) {
+            $matches[$key][1] = mb_strlen(substr($searchText, 0, $match[1]));
+        }
+
+        return $matches;
     }
 }
