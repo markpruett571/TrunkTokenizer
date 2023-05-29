@@ -7,10 +7,5 @@
             "Markpruett571\\TrunkTokenizer\\": "src/"
         }
     },
-    "authors": [
-        {
-            "name": "Mark Pruett"
-        }
-    ],
     "require": {}
 }
